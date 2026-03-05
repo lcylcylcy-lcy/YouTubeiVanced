@@ -1,0 +1,32 @@
+name: Build IPA
+on: [workflow_dispatch] # 讓你可以手動點擊按鈕開始建置
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      - name: Build Archive
+        run: |
+          cd source
+          xcodebuild archive -scheme iVanced -archivePath ./build/iVanced.xcarchive -sdk iphoneos CODE_SIGNING_ALLOWED=NO
+
+      - name: Export IPA (Unsigned)
+        run: |
+          mkdir -p ./build/Payload
+          cp -r ./source/build/iVanced.xcarchive/Products/Applications/*.app ./build/Payload/
+          cd build
+          zip -r iVanced.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: iVanced-IPA
+          path: build/iVanced.ipa
