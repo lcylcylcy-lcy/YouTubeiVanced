@@ -13,26 +13,34 @@ jobs:
         with:
           xcode-version: latest
 
-      - name: Find and Build Archive
+      - name: Build Archive
         run: |
+          # 進入 source 資料夾
           cd source
-          # 自動取得第一個 Scheme 的名稱
-          SCHEME=$(xcodebuild -list -json | jq -r '.project.schemes[0]')
-          echo "Found Scheme: $SCHEME"
           
-          # 執行編譯
+          # 尋找專案檔案 (.xcodeproj 或 .xcworkspace)
+          PROJECT_FILE=$(find . -maxdepth 2 -name "*.xcodeproj" -o -name "*.xcworkspace" | head -n 1)
+          echo "Found Project: $PROJECT_FILE"
+          
+          # 取得第一個可用的 Scheme
+          SCHEME=$(xcodebuild -list -json | jq -r '.project.schemes[0] // .workspace.schemes[0]')
+          echo "Using Scheme: $SCHEME"
+
+          # 執行編譯 (加上 -allowProvisioningUpdates 增加成功率)
           xcodebuild archive \
             -scheme "$SCHEME" \
             -archivePath ./iVanced.xcarchive \
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: Prepare Payload
         run: |
           mkdir -p Payload
-          # 找到編譯出的 .app 檔案路徑
-          APP_PATH=$(find source/iVanced.xcarchive -name "*.app" -type d)
+          # 遞迴搜尋編譯出來的 .app 檔案
+          APP_PATH=$(find . -name "*.app" -type d | grep ".xcarchive" | head -n 1)
+          echo "Found App Path: $APP_PATH"
           cp -r "$APP_PATH" Payload/
           zip -vr iVanced.ipa Payload/
 
